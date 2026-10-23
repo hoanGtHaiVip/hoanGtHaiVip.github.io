@@ -530,14 +530,40 @@ class LocketWebApp {
       ctx.fillStyle = "#000000";
       ctx.fillRect(0, 0, size, size);
     } else {
-      // Blur padding
+      // Universal Cross-Platform Blur Padding (works 100% on iOS Safari, Android & Desktop)
+      if (!this._blurCanvas1) {
+        this._blurCanvas1 = document.createElement("canvas");
+        this._blurCanvas1.width = 64;
+        this._blurCanvas1.height = 64;
+        this._blurCanvas2 = document.createElement("canvas");
+        this._blurCanvas2.width = 28;
+        this._blurCanvas2.height = 28;
+      }
+      const bCtx1 = this._blurCanvas1.getContext("2d");
+      const bCtx2 = this._blurCanvas2.getContext("2d");
+      bCtx1.imageSmoothingEnabled = true;
+      bCtx2.imageSmoothingEnabled = true;
+
+      // Multi-pass downscale + upscale creates creamy Gaussian blur even on iOS WebKit
+      bCtx1.drawImage(sourceEl, 0, 0, 64, 64);
+      bCtx2.drawImage(this._blurCanvas1, 0, 0, 64, 64, 0, 0, 28, 28);
+      bCtx1.drawImage(this._blurCanvas2, 0, 0, 28, 28, 0, 0, 64, 64);
+
       ctx.save();
-      ctx.filter = "blur(36px) brightness(0.78)";
+      if ("filter" in ctx) {
+        ctx.filter = "blur(28px) brightness(0.78)";
+      }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       const bgScale = Math.max(size / srcW, size / srcH) * 1.12;
       const bgW = srcW * bgScale;
       const bgH = srcH * bgScale;
-      ctx.drawImage(sourceEl, (size - bgW) / 2, (size - bgH) / 2, bgW, bgH);
+      ctx.drawImage(this._blurCanvas1, (size - bgW) / 2, (size - bgH) / 2, bgW, bgH);
       ctx.restore();
+
+      // Subtle dark vignette for contrast
+      ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+      ctx.fillRect(0, 0, size, size);
     }
 
     const scale = Math.min(size / srcW, size / srcH);
@@ -779,7 +805,16 @@ class LocketWebApp {
    * ========================================================================= */
   async canvasToBlob(mime = "image/webp", quality = 0.92) {
     const canvas = document.getElementById("previewCanvas");
-    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), mime, quality));
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (blob && blob.size > 0) {
+          resolve(blob);
+        } else {
+          // Fallback to JPEG on older iOS WebKit if WebP canvas encoding is unsupported
+          canvas.toBlob((jpgBlob) => resolve(jpgBlob), "image/jpeg", quality);
+        }
+      }, mime, quality);
+    });
   }
 
   async uploadToFirebaseStorage(blobOrFile, isVideo = false) {

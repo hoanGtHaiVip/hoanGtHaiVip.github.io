@@ -1,0 +1,18 @@
+{
+  "name": "Locket Gold Studio Web",
+  "short_name": "Locket Gold",
+  "description": "Đăng Ảnh & Video 1:1 Chống Cắt + 158 Badges Locket Gold",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#07080c",
+  "theme_color": "#ffb800",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%23ffb800%22/><text x=%2250%22 y=%2268%22 font-size=%2255%22 text-anchor=%22middle%22>💛</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
