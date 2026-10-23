@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locket Gold Studio Web — Đăng Ảnh & Video Chống Cắt + 158 Badges</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Top Navbar -->
+  <header class="navbar">
+    <div class="brand" onclick="app.switchTab('studio')">
+      <div class="brand-logo">💛</div>
+      <span>Locket Studio</span>
+      <span class="gold-badge">GOLD WEB</span>
+    </div>
+
+    <div class="nav-actions">
+      <div class="status-pill" id="connectionBadge">
+        <span class="status-dot demo" id="statusDot"></span>
+        <span id="statusText">Chế độ Demo (Dùng thử)</span>
+      </div>
+      <button class="btn btn-sm" id="btnToggleDemo" onclick="app.activateDemoMode()">✨ Demo Mode</button>
+      <button class="btn btn-gold btn-sm" id="btnOpenLogin" onclick="app.openLoginModal()">🔑 Đăng nhập Locket</button>
+    </div>
+  </header>
+
+  <!-- Demo / Quick Info Banner -->
+  <div class="demo-banner" id="topBanner">
+    <div>
+      💡 <strong>Chế độ Demo trực quan:</strong> Bạn có thể thử chọn ảnh/video, chỉnh khung chống cắt 1:1, gắn <strong>🔥 Streak</strong>, <strong>⛅ Thời tiết</strong>, <strong>🎨 158+ Badge Locket Gold</strong> ngay trên trình duyệt. Đăng nhập tài khoản thật bất cứ lúc nào để đẩy thẳng lên Widget bạn bè!
+    </div>
+    <button class="btn btn-sm" onclick="app.openLoginModal()">Kết nối tài khoản thật ➔</button>
+  </div>
+
+  <!-- Main Content Grid -->
+  <main class="container">
+
+    <!-- LEFT COLUMN: STUDIO CONTROLS / FEED / HISTORY -->
+    <section class="card">
+      <div class="tabs">
+        <button class="tab-btn active" id="tabBtnStudio" onclick="app.switchTab('studio')">📸 Studio Đăng Widget</button>
+        <button class="tab-btn" id="tabBtnFeed" onclick="app.switchTab('feed')">📱 Feed Bạn Bè</button>
+        <button class="tab-btn" id="tabBtnHistory" onclick="app.switchTab('history')">🕓 Lịch Sử Đã Đăng</button>
+      </div>
+
+      <!-- TAB 1: STUDIO -->
+      <div id="tabStudio" class="tab-pane">
+        <!-- Media Dropzone -->
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+          <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="app.handleFileSelect(event)" />
+          <div class="dropzone-icon">🖼️ 🎬</div>
+          <div class="dropzone-title">
+            Kéo thả Ảnh hoặc Video vào đây, hoặc bấm để chọn file
+          </div>
+          <div class="dropzone-sub">
+            Hỗ trợ Ảnh (JPG, PNG, WebP) & Video (MP4, MOV) • Tự động căn khung vuông 1:1 chống cắt
+          </div>
+        </div>
+
+        <!-- Sample Demo Media Bar -->
+        <div class="sample-bar">
+          <span class="sample-label">⚡ Ảnh mẫu thử nhanh:</span>
+          <span class="sample-chip" onclick="app.loadSampleImage('sunset')">🌅 Hoàng hôn Đà Lạt</span>
+          <span class="sample-chip" onclick="app.loadSampleImage('cyber')">🌃 Đêm Sài Gòn</span>
+          <span class="sample-chip" onclick="app.loadSampleImage('coffee')">☕ Cafe Sáng</span>
+          <span class="sample-chip" onclick="app.loadSampleImage('portrait')">📸 Ảnh dọc 9:16 (Test Blur)</span>
+        </div>
+
+        <!-- Step 1: Anti-Crop Framing Mode -->
+        <div class="section-label">
+          <span>1. Chế độ Khung Hình 1:1 (Chống Locket cắt ảnh/video)</span>
+          <span id="mediaDimInfo" class="section-hint">1080 × 1080 px</span>
+        </div>
+        <div class="option-grid">
+          <div class="option-card active" id="frameBlur" onclick="app.setFrameMode('blur')">
+            <span class="title">✨ Blur Padding</span>
+            <span class="desc">Viền mờ Gaussian (Đẹp nhất)</span>
+          </div>
+          <div class="option-card" id="frameFit" onclick="app.setFrameMode('fit')">
+            <span class="title">⬛ Fit Letterbox</span>
+            <span class="desc">Giữ nguyên ảnh, viền đen</span>
+          </div>
+          <div class="option-card" id="frameCrop" onclick="app.setFrameMode('crop')">
+            <span class="title">✂️ Center Crop</span>
+            <span class="desc">Cắt vuông chính giữa</span>
+          </div>
+        </div>
+
+        <!-- Step 2: Smart Overlay & Badge Selector -->
+        <div class="section-label">
+          <span>2. Chọn Kiểu Badge & Overlay Thông Minh</span>
+          <span class="section-hint">Cập nhật trực tiếp lên màn hình iPhone bên phải ➔</span>
+        </div>
+
+        <div class="overlay-types">
+          <button class="overlay-pill active" id="ov_standard" onclick="app.setOverlayMode('standard')">💬 Chuẩn</button>
+          <button class="overlay-pill" id="ov_streak" onclick="app.setOverlayMode('streak')">🔥 Streak</button>
+          <button class="overlay-pill" id="ov_time" onclick="app.setOverlayMode('time')">🕒 Giờ</button>
+          <button class="overlay-pill" id="ov_weather" onclick="app.setOverlayMode('weather')">⛅ Thời tiết</button>
+          <button class="overlay-pill" id="ov_location" onclick="app.setOverlayMode('location')">📍 Địa điểm</button>
+          <button class="overlay-pill" id="ov_music" onclick="app.setOverlayMode('music')">🎵 Đang nghe</button>
+          <button class="overlay-pill" id="ov_colors" onclick="app.setOverlayMode('colors')">🎨 Gradient</button>
+          <button class="overlay-pill" id="ov_preset" onclick="app.setOverlayMode('preset')">👑 158 Presets</button>
+        </div>
+
+        <!-- Dynamic Sub-Panel depending on selected Overlay Mode -->
+        <div class="dynamic-config" id="dynamicConfigBox">
+          <!-- Streak Config -->
+          <div id="cfg_streak" class="cfg-subpanel" style="display:none;">
+            <div class="input-row">
+              <div class="input-group-grow">
+                <label class="field-label">🔥 Số chuỗi ngày Streak (VD: 100 Days, 365🔥):</label>
+                <input type="text" id="streakValInput" class="input" value="100 Days" oninput="app.updatePreview()" placeholder="100 Days" />
+              </div>
+              <div class="quick-btn-group">
+                <button class="btn btn-sm" onclick="app.setQuickStreak('50 Days')">50🔥</button>
+                <button class="btn btn-sm" onclick="app.setQuickStreak('100 Days')">100🔥</button>
+                <button class="btn btn-sm" onclick="app.setQuickStreak('365 Days')">365🔥</button>
+                <button class="btn btn-sm" onclick="app.setQuickStreak('999 Days')">999🔥</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Time Config -->
+          <div id="cfg_time" class="cfg-subpanel" style="display:none;">
+            <div class="input-row">
+              <div class="input-group-grow">
+                <label class="field-label">🕒 Thời gian hiển thị:</label>
+                <input type="text" id="timeValInput" class="input" value="" oninput="app.updatePreview()" placeholder="VD: 23:45" />
+              </div>
+              <button class="btn btn-sm" onclick="app.fillCurrentTime()">🕒 Lấy giờ hiện tại</button>
+            </div>
+          </div>
+
+          <!-- Weather Config -->
+          <div id="cfg_weather" class="cfg-subpanel" style="display:none;">
+            <div class="input-row">
+              <div class="input-group-grow">
+                <label class="field-label">⛅ Thời tiết / Thành phố:</label>
+                <input type="text" id="weatherValInput" class="input" value="26°C Trời mát mẻ" oninput="app.updatePreview()" placeholder="VD: 22°C Đà Lạt se lạnh" />
+              </div>
+              <div class="quick-btn-group">
+                <button class="btn btn-sm" onclick="app.fetchLiveWeather('Ho_Chi_Minh')">⛅ Sài Gòn</button>
+                <button class="btn btn-sm" onclick="app.fetchLiveWeather('Hanoi')">⛅ Hà Nội</button>
+                <button class="btn btn-sm" onclick="app.fetchLiveWeather('Da_Lat')">⛅ Đà Lạt</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Location Config -->
+          <div id="cfg_location" class="cfg-subpanel" style="display:none;">
+            <label class="field-label">📍 Tên địa điểm Check-in:</label>
+            <input type="text" id="locationValInput" class="input" value="Sài Gòn, Việt Nam" oninput="app.updatePreview()" placeholder="Nhập tên địa điểm..." />
+          </div>
+
+          <!-- Music Config -->
+          <div id="cfg_music" class="cfg-subpanel" style="display:none;">
+            <label class="field-label">🎵 Tên Bài Hát — Ca Sĩ:</label>
+            <input type="text" id="musicValInput" class="input" value="Chúng Ta Của Tương Lai - Sơn Tùng M-TP" oninput="app.updatePreview()" placeholder="Tên bài hát..." />
+          </div>
+
+          <!-- Custom Gradient Colors Config -->
+          <div id="cfg_colors" class="cfg-subpanel" style="display:none;">
+            <label class="field-label">🎨 Phối màu dải Gradient & Icon tùy chỉnh:</label>
+            <div class="input-row">
+              <label class="color-picker-wrap">
+                <input type="color" id="gradColor1" value="#FF5F6D" oninput="app.updatePreview()" />
+                <span class="color-picker-label">Màu 1</span>
+              </label>
+              <label class="color-picker-wrap">
+                <input type="color" id="gradColor2" value="#FFC371" oninput="app.updatePreview()" />
+                <span class="color-picker-label">Màu 2</span>
+              </label>
+              <label class="color-picker-wrap">
+                <input type="color" id="gradTextColor" value="#FFFFFF" oninput="app.updatePreview()" />
+                <span class="color-picker-label">Màu chữ</span>
+              </label>
+              <div style="width:110px;">
+                <input type="text" id="customEmojiInput" class="input" value="✨" oninput="app.updatePreview()" placeholder="Emoji" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 158+ Official Presets Browser -->
+          <div id="cfg_preset" class="cfg-subpanel" style="display:none;">
+            <label class="field-label">👑 Kho 158+ Badge Locket Gold Chính Hãng:</label>
+            <div class="input-row">
+              <div class="input-group-grow">
+                <input type="text" id="presetSearchInput" class="input" placeholder="🔍 Tìm trong 158+ Badge (VD: yêu, nhớ, ngủ, buồn, party, coffee...)" oninput="app.renderPresetsList()" />
+              </div>
+              <select id="presetCategorySelect" class="select" onchange="app.renderPresetsList()">
+                <option value="ALL">Tất cả danh mục (158)</option>
+              </select>
+            </div>
+            <div class="presets-grid" id="presetsGrid"></div>
+          </div>
+
+          <!-- Caption Input (Always visible) -->
+          <div>
+            <label class="field-label">
+              <span>💬 Nội dung Caption hiển thị trên Widget:</span>
+              <span id="smartSyntaxHint" class="syntax-hint"></span>
+            </label>
+            <input type="text" id="captionInput" class="input" value="Chill cùng Locket Studio ✨" oninput="app.updatePreview()" placeholder="Nhập lời nhắn kèm theo..." />
+          </div>
+        </div>
+
+        <!-- Step 3: Privacy & Post Button -->
+        <div class="studio-footer">
+          <label class="switch-label">
+            <input type="checkbox" id="privateCheck" class="switch-input" />
+            <span>🔒 Chỉ gửi cho riêng mình (Private Test)</span>
+          </label>
+
+          <div class="action-buttons">
+            <button class="btn" onclick="app.downloadProcessedImage()">💾 Tải ảnh 1:1</button>
+            <button class="btn btn-gold btn-lg" id="btnPostMoment" onclick="app.submitMoment()">
+              🚀 Đăng Lên Locket Widget Ngay
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: FRIENDS FEED -->
+      <div id="tabFeed" class="tab-pane" style="display:none;">
+        <div class="card-header">
+          <div class="card-title">📱 Khoảnh Khắc Mới Nhất Từ Bạn Bè</div>
+          <button class="btn btn-sm" onclick="app.loadFriendsFeed()">🔄 Làm mới Feed</button>
+        </div>
+        <div class="feed-list" id="feedContainer"></div>
+      </div>
+
+      <!-- TAB 3: POSTED HISTORY -->
+      <div id="tabHistory" class="tab-pane" style="display:none;">
+        <div class="card-header">
+          <div class="card-title">🕓 Lịch Sử Khoảnh Khắc Đã Đăng</div>
+          <button class="btn btn-sm" onclick="app.clearHistory()">🗑️ Xóa lịch sử lưu tạm</button>
+        </div>
+        <div class="feed-list" id="historyContainer"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: LIVE IPHONE WIDGET SIMULATOR -->
+    <aside class="widget-showcase">
+      <div class="iphone-mockup">
+        <div class="dynamic-island">
+          <div class="island-sensor"></div>
+          <div class="island-cam"></div>
+        </div>
+
+        <div class="mockup-subtitle">
+          MÔ PHỎNG WIDGET MÀN HÌNH CHÍNH IPHONE (TỶ LỆ 1:1)
+        </div>
+
+        <!-- 1:1 Square Locket Widget -->
+        <div class="locket-widget-frame">
+          <canvas id="previewCanvas" width="1080" height="1080"></canvas>
+          <video id="previewVideo" playsinline muted loop crossorigin="anonymous"></video>
+
+          <div class="widget-top-bar">
+            <div class="widget-user-chip">
+              <div class="widget-avatar" id="widgetAvatarText">LO</div>
+              <span id="widgetUserName">Bạn (Preview)</span>
+            </div>
+            <div class="widget-user-chip widget-mode-chip" id="widgetMediaTypeBadge">
+              📸 1:1 BLUR
+            </div>
+          </div>
+
+          <div class="widget-caption-wrap" id="widgetCaptionWrap">
+            <div class="widget-overlay-pill" id="widgetOverlayPill">
+              <span id="widgetOverlayIcon"></span>
+              <span id="widgetOverlayText">Chill cùng Locket Studio ✨</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Cheat Sheet inside Mockup -->
+        <div class="cheatsheet-card">
+          <div class="cheatsheet-title">
+            🔥 Mẹo dùng Streak & Tag trên Telegram / Web:
+          </div>
+          <div class="cheatsheet-body">
+            • <strong>Trên Web:</strong> Bấm nút <code>🔥 Streak</code> và gõ số ngày (VD: <code>100 Days</code>).<br/>
+            • <strong>Trên Bot Telegram:</strong> Gửi ảnh kèm caption:<br/>
+            <code>[streak: 100 Days] Mãi đỉnh luôn</code><br/>
+            • Kết hợp chống cắt + màu Gradient:<br/>
+            <code>[blur] [colors: #FF5F6D, #FFC371] Chill</code>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- LOGIN & SESSION MODAL -->
+  <div class="modal-backdrop" id="loginModal">
+    <div class="modal">
+      <div class="card-header">
+        <div class="card-title">🔑 Kết Nối Tài Khoản Locket</div>
+        <button class="btn btn-sm" onclick="app.closeLoginModal()">✕</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" id="loginTabEmail" onclick="app.switchLoginTab('email')">Email & Mật khẩu</button>
+        <button class="tab-btn" id="loginTabJson" onclick="app.switchLoginTab('json')">Nhập Session JSON</button>
+      </div>
+
+      <!-- Login via Email/Password -->
+      <div id="loginFormEmail" class="tab-pane">
+        <div class="form-group">
+          <label class="field-label">Email tài khoản Locket:</label>
+          <input type="email" id="loginEmail" class="input" placeholder="duonghoangthai61@gmail.com" />
+        </div>
+        <div class="form-group">
+          <label class="field-label">Mật khẩu:</label>
+          <input type="password" id="loginPassword" class="input" placeholder="••••••••••••" />
+        </div>
+        <button class="btn btn-gold btn-block" id="btnDoLogin" onclick="app.loginWithEmail()">
+          🚀 Đăng Nhập Trực Tiếp (Firebase Auth)
+        </button>
+      </div>
+
+      <!-- Login via Session JSON -->
+      <div id="loginFormJson" class="tab-pane" style="display:none;">
+        <div class="form-group">
+          <label class="field-label">
+            <span>Dán nội dung file <code>locketlam_session.json</code> của bạn:</span>
+          </label>
+          <textarea id="sessionJsonInput" class="textarea" rows="5" placeholder='{"uid":"...","idToken":"...","refreshToken":"..."}'></textarea>
+        </div>
+        <button class="btn btn-gold btn-block" onclick="app.loginWithSessionJson()">
+          💾 Nạp Session Ngay
+        </button>
+      </div>
+
+      <div class="modal-footer">
+        <span>🔒 Chạy 100% tại trình duyệt của bạn (Client-side).</span>
+        <button class="btn btn-sm" onclick="app.logout()">Đăng xuất</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="presets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
