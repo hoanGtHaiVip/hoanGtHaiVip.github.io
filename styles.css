@@ -1198,7 +1198,7 @@ input[type="color"] {
     grid-template-columns: 1fr;
     gap: 18px;
     margin: 14px auto;
-    padding: 0 12px 96px;
+    padding: 0 12px 140px;
   }
 
   /* Move Live Widget Preview to the TOP on Mobile so user sees live changes */

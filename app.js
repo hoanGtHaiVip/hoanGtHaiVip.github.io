@@ -844,12 +844,12 @@ class LocketWebApp {
       headers: {
         "Content-Type": "application/json; charset=UTF-8",
         "Authorization": `Firebase ${token}`,
-        "x-goog-upload-protocol": "resumable",
-        "x-goog-upload-command": "start",
-        "x-goog-upload-content-type": mime,
-        "x-goog-upload-content-length": String(blobOrFile.size),
-        "x-firebase-storage-version": "ios/12.12.1",
-        "x-firebase-gmpid": FIREBASE_APP_ID
+        "X-Goog-Upload-Protocol": "resumable",
+        "X-Goog-Upload-Command": "start",
+        "X-Goog-Upload-Header-Content-Type": mime,
+        "X-Goog-Upload-Header-Content-Length": String(blobOrFile.size),
+        "X-Firebase-Storage-Version": "ios/12.12.1",
+        "X-Firebase-GMPID": FIREBASE_APP_ID
       },
       body: JSON.stringify(metadata)
     });
@@ -868,10 +868,8 @@ class LocketWebApp {
       method: "PUT",
       headers: {
         "Content-Type": "application/octet-stream",
-        "x-goog-upload-protocol": "resumable",
-        "x-goog-upload-command": "upload, finalize",
-        "x-goog-upload-offset": "0",
-        "x-goog-upload-content-length": String(blobOrFile.size)
+        "X-Goog-Upload-Command": "upload, finalize",
+        "X-Goog-Upload-Offset": "0"
       },
       body: blobOrFile
     });
