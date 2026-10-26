@@ -4,30 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#07080c" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Locket Gold" />
-  <link rel="manifest" href="manifest.json?v=3" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:," />
   <title>Locket Gold Studio Web — Đăng Ảnh & Video Chống Cắt + 158 Badges</title>
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <script>
+    document.write(`<link rel="stylesheet" href="styles.css?v=${Date.now()}">`);
+  </script>
 </head>
 <body>
 
   <!-- Top Navbar -->
   <header class="navbar">
-    <div class="brand" onclick="app.switchTab('studio')">
+    <button type="button" class="brand" onclick="app.switchTab('studio')" aria-label="Mở Locket Studio">
       <div class="brand-logo">💛</div>
       <div class="brand-text-wrap">
         <span class="brand-title">Locket Studio</span>
         <span class="gold-badge">GOLD WEB</span>
       </div>
-    </div>
+    </button>
 
     <div class="nav-actions">
-      <div class="status-pill" id="connectionBadge" onclick="app.openLoginModal()">
+      <button type="button" class="status-pill" id="connectionBadge" onclick="app.openLoginModal()" aria-label="Mở cài đặt kết nối Locket">
         <span class="status-dot demo" id="statusDot"></span>
         <span id="statusText">Chế độ Demo</span>
-      </div>
+      </button>
       <button class="btn btn-sm hide-mobile" id="btnToggleDemo" onclick="app.activateDemoMode()">✨ Demo</button>
       <button class="btn btn-gold btn-sm" id="btnOpenLogin" onclick="app.openLoginModal()">🔑 Đăng nhập</button>
     </div>
@@ -46,24 +50,26 @@
 
     <!-- LEFT COLUMN: STUDIO CONTROLS / FEED / HISTORY -->
     <section class="card studio-card">
-      <div class="tabs main-tabs">
-        <button class="tab-btn active" id="tabBtnStudio" onclick="app.switchTab('studio')">📸 Studio</button>
-        <button class="tab-btn" id="tabBtnFeed" onclick="app.switchTab('feed')">📱 Feed Bạn Bè</button>
-        <button class="tab-btn" id="tabBtnHistory" onclick="app.switchTab('history')">🕓 Lịch Sử</button>
+      <div class="tabs main-tabs" role="tablist" aria-label="Điều hướng chính">
+        <button class="tab-btn active" id="tabBtnStudio" role="tab" aria-selected="true" onclick="app.switchTab('studio')">📸 Studio</button>
+        <button class="tab-btn" id="tabBtnFeed" role="tab" aria-selected="false" onclick="app.switchTab('feed')">📱 Feed</button>
+        <button class="tab-btn" id="tabBtnFriends" role="tab" aria-selected="false" onclick="app.switchTab('friends')">👥 Bạn bè</button>
+        <button class="tab-btn" id="tabBtnHistory" role="tab" aria-selected="false" onclick="app.switchTab('history')">🕓 Đã đăng</button>
+        <button class="tab-btn" id="tabBtnProfile" role="tab" aria-selected="false" onclick="app.switchTab('profile')">👤 Hồ sơ</button>
       </div>
 
       <!-- TAB 1: STUDIO -->
       <div id="tabStudio" class="tab-pane">
         <!-- Media Dropzone + Mobile Quick Camera/Gallery Buttons -->
-        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-          <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="app.handleFileSelect(event)" />
-          <input type="file" id="cameraInput" accept="image/*,video/*" capture="environment" style="display:none" onchange="app.handleFileSelect(event)" />
+        <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Chọn ảnh hoặc video" onclick="document.getElementById('fileInput').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('fileInput').click()}">
+          <input type="file" id="fileInput" accept="image/*,video/mp4,.mp4" style="display:none" onchange="app.handleFileSelect(event)" />
+          <input type="file" id="cameraInput" accept="image/*,video/mp4,.mp4" capture="environment" style="display:none" onchange="app.handleFileSelect(event)" />
           <div class="dropzone-icon">🖼️ 🎬</div>
           <div class="dropzone-title">
             Chạm để chọn Ảnh / Video hoặc Kéo thả vào đây
           </div>
           <div class="dropzone-sub">
-            Hỗ trợ Ảnh &amp; Video • Tự động bo khung vuông 1:1 chống cắt
+            Ảnh tối đa 20 MB • Video MP4 (H.264/AAC) dưới 6 MB • Tự động tạo khung vuông 1:1
           </div>
           <div class="mobile-media-btns" onclick="event.stopPropagation()">
             <button type="button" class="btn btn-sm" onclick="document.getElementById('fileInput').click()">📁 Thư viện Ảnh/Video</button>
@@ -74,10 +80,10 @@
         <!-- Sample Demo Media Bar -->
         <div class="sample-bar">
           <span class="sample-label">⚡ Mẫu thử:</span>
-          <span class="sample-chip" onclick="app.loadSampleImage('sunset')">🌅 Đà Lạt</span>
-          <span class="sample-chip" onclick="app.loadSampleImage('cyber')">🌃 Sài Gòn</span>
-          <span class="sample-chip" onclick="app.loadSampleImage('coffee')">☕ Cafe</span>
-          <span class="sample-chip" onclick="app.loadSampleImage('portrait')">📸 Ảnh 9:16</span>
+          <button type="button" class="sample-chip" onclick="app.loadSampleImage('sunset')">🌅 Đà Lạt</button>
+          <button type="button" class="sample-chip" onclick="app.loadSampleImage('cyber')">🌃 Sài Gòn</button>
+          <button type="button" class="sample-chip" onclick="app.loadSampleImage('coffee')">☕ Cafe</button>
+          <button type="button" class="sample-chip" onclick="app.loadSampleImage('portrait')">📸 Ảnh 9:16</button>
         </div>
 
         <!-- Step 1: Anti-Crop Framing Mode -->
@@ -86,18 +92,18 @@
           <span id="mediaDimInfo" class="section-hint">1080 × 1080 px</span>
         </div>
         <div class="option-grid">
-          <div class="option-card active" id="frameBlur" onclick="app.setFrameMode('blur')">
+          <button type="button" class="option-card active" id="frameBlur" onclick="app.setFrameMode('blur')">
             <span class="title">✨ Blur</span>
             <span class="desc">Viền mờ Gaussian</span>
-          </div>
-          <div class="option-card" id="frameFit" onclick="app.setFrameMode('fit')">
+          </button>
+          <button type="button" class="option-card" id="frameFit" onclick="app.setFrameMode('fit')">
             <span class="title">⬛ Fit Đen</span>
             <span class="desc">Giữ nguyên khung</span>
-          </div>
-          <div class="option-card" id="frameCrop" onclick="app.setFrameMode('crop')">
+          </button>
+          <button type="button" class="option-card" id="frameCrop" onclick="app.setFrameMode('crop')">
             <span class="title">✂️ Crop</span>
             <span class="desc">Cắt vuông giữa</span>
-          </div>
+          </button>
         </div>
 
         <!-- Step 2: Smart Overlay & Badge Selector -->
@@ -221,10 +227,14 @@
 
         <!-- Step 3: Privacy & Post Button -->
         <div class="studio-footer">
-          <label class="switch-label">
-            <input type="checkbox" id="privateCheck" class="switch-input" />
-            <span>🔒 Chỉ gửi cho riêng mình (Private Test)</span>
-          </label>
+          <div class="audience-controls">
+            <label class="switch-label">
+              <input type="checkbox" id="privateCheck" class="switch-input" onchange="app.updateAudienceControls()" />
+              <span>🔒 Chỉ gửi cho riêng mình (Private Test)</span>
+            </label>
+            <label class="field-label" for="recipientInput">Gửi riêng tới bạn bè (UID, cách nhau bằng dấu phẩy)</label>
+            <input type="text" id="recipientInput" class="input" placeholder="Để trống để gửi tất cả bạn bè" />
+          </div>
 
           <div class="action-buttons">
             <button class="btn" onclick="app.downloadProcessedImage()">💾 Tải ảnh 1:1</button>
@@ -244,13 +254,54 @@
         <div class="feed-list" id="feedContainer"></div>
       </div>
 
-      <!-- TAB 3: POSTED HISTORY -->
+      <!-- TAB 3: FRIEND MANAGEMENT -->
+      <div id="tabFriends" class="tab-pane" style="display:none;">
+        <div class="card-header">
+          <div class="card-title">👥 Bạn bè &amp; Tin nhắn</div>
+          <button class="btn btn-sm" onclick="app.loadFriends()">🔄 Làm mới</button>
+        </div>
+        <div class="management-form">
+          <label class="field-label" for="friendUidInput">UID người dùng</label>
+          <div class="inline-form">
+            <input id="friendUidInput" class="input" autocomplete="off" placeholder="Nhập UID Locket" />
+            <button class="btn btn-gold" onclick="app.sendFriendRequest()">➕ Kết bạn</button>
+          </div>
+          <p class="field-help">Static web không tra username vì trang công khai không bảo đảm CORS. Dùng UID để tránh gửi nhầm.</p>
+        </div>
+        <div class="feed-list" id="friendsContainer"></div>
+        <div class="management-form">
+          <label class="field-label" for="chatReceiverInput">Gửi tin nhắn theo UID</label>
+          <input id="chatReceiverInput" class="input" autocomplete="off" placeholder="UID người nhận" />
+          <textarea id="chatMessageInput" class="input textarea" maxlength="500" placeholder="Nội dung tin nhắn"></textarea>
+          <button class="btn btn-gold" onclick="app.sendChatMessage()">💬 Gửi tin</button>
+        </div>
+      </div>
+
+      <!-- TAB 4: POSTED HISTORY -->
       <div id="tabHistory" class="tab-pane" style="display:none;">
         <div class="card-header">
           <div class="card-title">🕓 Lịch Sử Khoảnh Khắc Đã Đăng</div>
           <button class="btn btn-sm" onclick="app.clearHistory()">🗑️ Xóa lịch sử</button>
         </div>
         <div class="feed-list" id="historyContainer"></div>
+      </div>
+
+      <!-- TAB 5: PROFILE -->
+      <div id="tabProfile" class="tab-pane" style="display:none;">
+        <div class="card-header">
+          <div class="card-title">👤 Hồ sơ Locket</div>
+          <button class="btn btn-sm" onclick="app.loadProfileForm()">🔄 Tải lại</button>
+        </div>
+        <div class="management-form">
+          <div class="profile-grid">
+            <label><span class="field-label">Tên</span><input id="profileFirstName" class="input" maxlength="50" /></label>
+            <label><span class="field-label">Họ</span><input id="profileLastName" class="input" maxlength="50" /></label>
+          </div>
+          <label class="field-label" for="profileBirthdate">Ngày sinh</label>
+          <input id="profileBirthdate" class="input" type="date" />
+          <button class="btn btn-gold" id="btnSaveProfile" onclick="app.saveProfile()">💾 Lưu hồ sơ</button>
+          <p class="field-help">Ảnh đại diện chưa bật: cập nhật an toàn cần kiểm thử Storage và Firebase Auth bằng tài khoản thật.</p>
+        </div>
       </div>
     </section>
 
@@ -308,11 +359,11 @@
   </main>
 
   <!-- LOGIN & SESSION MODAL -->
-  <div class="modal-backdrop" id="loginModal">
-    <div class="modal">
+  <div class="modal-backdrop" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" aria-hidden="true">
+    <div class="modal" tabindex="-1">
       <div class="card-header">
-        <div class="card-title">🔑 Kết Nối Tài Khoản Locket</div>
-        <button class="btn btn-sm" onclick="app.closeLoginModal()">✕</button>
+        <div class="card-title" id="loginModalTitle">🔑 Kết Nối Tài Khoản Locket</div>
+        <button type="button" class="btn btn-sm" onclick="app.closeLoginModal()" aria-label="Đóng hộp thoại đăng nhập">✕</button>
       </div>
 
       <div class="tabs">
@@ -323,12 +374,12 @@
       <!-- Login via Email/Password -->
       <div id="loginFormEmail" class="tab-pane">
         <div class="form-group">
-          <label class="field-label">Email tài khoản Locket:</label>
-          <input type="email" id="loginEmail" class="input" placeholder="duonghoangthai61@gmail.com" />
+          <label class="field-label" for="loginEmail">Email tài khoản Locket:</label>
+          <input type="email" id="loginEmail" class="input" autocomplete="email" placeholder="email@example.com" />
         </div>
         <div class="form-group">
-          <label class="field-label">Mật khẩu:</label>
-          <input type="password" id="loginPassword" class="input" placeholder="••••••••••••" />
+          <label class="field-label" for="loginPassword">Mật khẩu:</label>
+          <input type="password" id="loginPassword" class="input" autocomplete="current-password" placeholder="••••••••••••" />
         </div>
         <button class="btn btn-gold btn-block" id="btnDoLogin" onclick="app.loginWithEmail()">
           🚀 Đăng Nhập Trực Tiếp (Firebase Auth)
@@ -338,7 +389,7 @@
       <!-- Login via Session JSON -->
       <div id="loginFormJson" class="tab-pane" style="display:none;">
         <div class="form-group">
-          <label class="field-label">
+          <label class="field-label" for="sessionJsonInput">
             <span>Dán nội dung file <code>locketlam_session.json</code> của bạn:</span>
           </label>
           <textarea id="sessionJsonInput" class="textarea" rows="5" placeholder='{"uid":"...","idToken":"...","refreshToken":"..."}'></textarea>
@@ -358,7 +409,10 @@
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
-  <script src="presets.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script>
+    const assetVersion = Date.now();
+    document.write(`<script src="presets.js?v=${assetVersion}"><\/script>`);
+    document.write(`<script src="app.js?v=${assetVersion}"><\/script>`);
+  </script>
 </body>
 </html>

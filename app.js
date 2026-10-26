@@ -31,6 +31,10 @@ class LocketWebApp {
     this.currentImage = null;
     this.currentVideoFile = null;
     this.videoAnimFrame = null;
+    this.videoObjectUrl = null;
+    this.mediaLoadId = 0;
+    this.feedLoadId = 0;
+    this.lastFocusedElement = null;
 
     this.demoFeed = [
       {
@@ -66,6 +70,7 @@ class LocketWebApp {
     this.loadSavedSession();
     this.initPresetsExplorer();
     this.setupDragAndDrop();
+    this.setupLoginModal();
     this.loadSampleImage("sunset");
     this.renderHistory();
     this.loadFriendsFeed();
@@ -93,7 +98,7 @@ class LocketWebApp {
     const container = document.getElementById("toastContainer");
     const el = document.createElement("div");
     el.className = "toast";
-    el.innerHTML = msg;
+    el.textContent = String(msg);
     container.appendChild(el);
     setTimeout(() => {
       el.style.opacity = "0";
@@ -109,11 +114,11 @@ class LocketWebApp {
       const raw = localStorage.getItem("locket_web_session");
       if (raw) {
         const data = JSON.parse(raw);
-        if (data && data.idToken && data.uid) {
+        if (data && (data.idToken || data.refreshToken)) {
           this.session = { ...this.session, ...data };
           this.isDemo = false;
           this.updateAuthUI();
-          this.fetchMyProfile();
+          if (this.session.uid) this.fetchMyProfile();
           return;
         }
       }
@@ -163,12 +168,45 @@ class LocketWebApp {
     }
   }
 
+  setupLoginModal() {
+    const modal = document.getElementById("loginModal");
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) this.closeLoginModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (!modal.classList.contains("open")) return;
+      if (event.key === "Escape") return this.closeLoginModal();
+      if (event.key !== "Tab") return;
+      const focusable = [...modal.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  }
+
   openLoginModal() {
-    document.getElementById("loginModal").classList.add("open");
+    const modal = document.getElementById("loginModal");
+    this.lastFocusedElement = document.activeElement;
+    document.querySelectorAll("body > :not(#loginModal):not(#toastContainer)").forEach((element) => { element.inert = true; });
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => document.getElementById("loginEmail").focus());
   }
 
   closeLoginModal() {
-    document.getElementById("loginModal").classList.remove("open");
+    const modal = document.getElementById("loginModal");
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+    document.querySelectorAll("body > [inert]").forEach((element) => { element.inert = false; });
+    this.lastFocusedElement?.focus();
   }
 
   switchLoginTab(tab) {
@@ -262,11 +300,11 @@ class LocketWebApp {
     this.closeLoginModal();
   }
 
-  async getValidToken() {
+  async getValidToken(forceRefresh = false) {
     if (this.isDemo) return "DEMO_TOKEN";
-    if (!this.session.idToken) throw new Error("Chưa đăng nhập!");
+    if (!this.session.idToken && !this.session.refreshToken) throw new Error("Chưa đăng nhập!");
 
-    if (Date.now() >= (this.session.expiresAt - 60000) && this.session.refreshToken) {
+    if ((forceRefresh || !this.session.idToken || Date.now() >= (this.session.expiresAt - 60000)) && this.session.refreshToken) {
       const url = `${FIREBASE_TOKEN_URL}?key=${FIREBASE_API_KEY}`;
       const body = new URLSearchParams({
         grant_type: "refresh_token",
@@ -281,18 +319,19 @@ class LocketWebApp {
         body
       });
       const data = await res.json();
-      if (res.ok && data.id_token) {
-        this.session.idToken = data.id_token;
-        this.session.refreshToken = data.refresh_token || this.session.refreshToken;
-        this.session.uid = data.user_id || this.session.uid;
-        this.session.expiresAt = Date.now() + parseInt(data.expires_in || "3600", 10) * 1000;
-        this.saveSession();
+      if (!res.ok || !data.id_token) {
+        throw new Error(data?.error?.message || "Không thể làm mới phiên đăng nhập");
       }
+      this.session.idToken = data.id_token;
+      this.session.refreshToken = data.refresh_token || this.session.refreshToken;
+      this.session.uid = data.user_id || this.session.uid;
+      this.session.expiresAt = Date.now() + parseInt(data.expires_in || "3600", 10) * 1000;
+      this.saveSession();
     }
     return this.session.idToken;
   }
 
-  async postLocketApi(endpoint, payload = {}) {
+  async postLocketApi(endpoint, payload = {}, diagnostics = false) {
     const token = await this.getValidToken();
     const res = await fetch(`${LOCKET_API_BASE}/${endpoint}`, {
       method: "POST",
@@ -317,8 +356,24 @@ class LocketWebApp {
         }
       })
     });
-    const json = await res.json();
-    return json.result || json;
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.error) {
+      const message = json.error?.message || json.message || `Locket API lỗi ${res.status}`;
+      const error = new Error(message);
+      error.status = res.status;
+      error.code = json.error?.status || json.error?.code || json.code || "";
+      throw error;
+    }
+    const result = json.result || json;
+    return diagnostics ? { result, status: res.status, keys: Object.keys(json) } : result;
+  }
+
+  requireLiveSession() {
+    if (this.isDemo || !this.session.uid) {
+      this.toast("ℹ️ Chức năng này cần đăng nhập tài khoản Locket thật.");
+      return false;
+    }
+    return true;
   }
 
   async fetchMyProfile() {
@@ -361,19 +416,56 @@ class LocketWebApp {
     if (file) this.loadMediaFile(file);
   }
 
-  loadMediaFile(file) {
+  clearVideoPreview() {
     if (this.videoAnimFrame) {
       cancelAnimationFrame(this.videoAnimFrame);
       this.videoAnimFrame = null;
     }
     const videoEl = document.getElementById("previewVideo");
     videoEl.pause();
+    videoEl.onloadedmetadata = null;
+    videoEl.onseeked = null;
+    videoEl.onerror = null;
+    videoEl.removeAttribute("src");
+    videoEl.load();
+    if (this.videoObjectUrl) {
+      URL.revokeObjectURL(this.videoObjectUrl);
+      this.videoObjectUrl = null;
+    }
+  }
 
-    if (file.type.startsWith("video/")) {
+  async loadMediaFile(file) {
+    const loadId = ++this.mediaLoadId;
+    const isMp4Name = file.name.toLowerCase().endsWith(".mp4");
+    const isVideo = file.type.startsWith("video/") || (!file.type && isMp4Name);
+    const isImage = file.type.startsWith("image/");
+    const maxSize = isVideo ? 6291455 : 20 * 1024 * 1024;
+    if (!isVideo && !isImage) return this.toast("⚠️ Chỉ hỗ trợ tệp ảnh hoặc video MP4.");
+    if (file.size > maxSize) return this.toast(`⚠️ ${isVideo ? "Video" : "Ảnh"} vượt quá ${isVideo ? "6 MB" : "20 MB"}.`);
+
+    if (isVideo) {
+      let brand;
+      try {
+        const signature = new Uint8Array(await file.slice(4, 12).arrayBuffer());
+        brand = String.fromCharCode(...signature.slice(0, 4));
+      } catch {
+        return this.toast("⚠️ Không đọc được video này. Hãy thử chọn lại tệp.");
+      }
+      if (loadId !== this.mediaLoadId) return;
+      if ((file.type && file.type !== "video/mp4") || !isMp4Name || brand !== "ftyp") {
+        return this.toast("⚠️ Website chỉ đăng video MP4. Hãy chuyển video sang MP4 trước khi chọn.");
+      }
+    }
+
+    if (loadId !== this.mediaLoadId) return;
+    this.clearVideoPreview();
+    const videoEl = document.getElementById("previewVideo");
+
+    if (isVideo) {
       this.mediaType = "video";
       this.currentVideoFile = file;
-      const url = URL.createObjectURL(file);
-      videoEl.src = url;
+      this.videoObjectUrl = URL.createObjectURL(file);
+      videoEl.src = this.videoObjectUrl;
       videoEl.play().catch(() => {});
       const loopRender = () => {
         if (this.mediaType === "video" && !videoEl.paused && !videoEl.ended) {
@@ -383,20 +475,39 @@ class LocketWebApp {
           this.videoAnimFrame = requestAnimationFrame(loopRender);
         }
       };
-      videoEl.onloadeddata = () => {
-        document.getElementById("mediaDimInfo").textContent = `🎬 Video ${videoEl.videoWidth}×${videoEl.videoHeight} ➔ 1080×1080`;
+      videoEl.onloadedmetadata = () => {
+        if (!Number.isFinite(videoEl.duration) || videoEl.duration <= 0) {
+          this.clearVideoPreview();
+          this.mediaType = "image";
+          this.currentVideoFile = null;
+          return this.toast("⚠️ Không đọc được video này. Hãy thử một tệp MP4 khác.");
+        }
+        const duration = `${videoEl.duration.toFixed(1)} giây`;
+        document.getElementById("mediaDimInfo").textContent = `🎬 ${videoEl.videoWidth}×${videoEl.videoHeight} • ${duration} • ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+        videoEl.currentTime = Math.min(1, videoEl.duration / 2);
+      };
+      videoEl.onseeked = () => {
         this.renderCanvasFrame(videoEl, videoEl.videoWidth || 1080, videoEl.videoHeight || 1080);
-        loopRender();
+        videoEl.play().catch(() => {});
+        if (!this.videoAnimFrame) loopRender();
+      };
+      videoEl.onerror = () => {
+        this.clearVideoPreview();
+        this.mediaType = "image";
+        this.currentVideoFile = null;
+        this.toast("⚠️ Trình duyệt không phát được video MP4 này. Nên dùng video H.264/AAC.");
       };
       this.updatePreview();
-      this.toast(`🎬 Đã nạp video: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+      this.toast(`🎬 Đang xử lý video: ${file.name}`);
     } else {
       this.mediaType = "image";
       this.currentVideoFile = null;
       const reader = new FileReader();
       reader.onload = (e) => {
+        if (loadId !== this.mediaLoadId) return;
         const img = new Image();
         img.onload = () => {
+          if (loadId !== this.mediaLoadId) return;
           this.currentImage = img;
           document.getElementById("mediaDimInfo").textContent = `🖼️ Ảnh ${img.width}×${img.height} ➔ 1:1 Chuẩn`;
           this.renderCanvasFrame(img, img.width, img.height);
@@ -413,10 +524,7 @@ class LocketWebApp {
    * Generates procedural high-res sample artwork so the demo works 100% offline/instantly
    */
   loadSampleImage(theme) {
-    if (this.videoAnimFrame) {
-      cancelAnimationFrame(this.videoAnimFrame);
-      this.videoAnimFrame = null;
-    }
+    this.clearVideoPreview();
     this.mediaType = "image";
     this.currentVideoFile = null;
 
@@ -892,6 +1000,13 @@ class LocketWebApp {
     try {
       const { finalText, overlayPayload } = this.buildOverlayData();
       const isPrivate = document.getElementById("privateCheck").checked;
+      const recipients = document.getElementById("recipientInput").value
+        .split(",")
+        .map((uid) => uid.trim())
+        .filter(Boolean);
+      if (recipients.some((uid) => !/^[A-Za-z0-9_-]{8,128}$/.test(uid))) {
+        throw new Error("UID người nhận không hợp lệ.");
+      }
       const canvas = document.getElementById("previewCanvas");
       const previewDataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
@@ -929,8 +1044,8 @@ class LocketWebApp {
         thumbnail_url: thumbUrl,
         overlays,
         sent_to_self_only: isPrivate,
-        sent_to_all: !isPrivate,
-        recipients: [],
+        sent_to_all: !isPrivate && recipients.length === 0,
+        recipients: isPrivate ? [] : recipients,
         md5: `${this.randomHex(32)}_${Math.floor(Date.now() / 1000)}`
       };
       if (finalText || overlayPayload.alt_text) {
@@ -971,79 +1086,358 @@ class LocketWebApp {
   }
 
   /* =========================================================================
-   * TABS: FRIENDS FEED & POSTED HISTORY
+   * TABS & SOCIAL FEATURES
    * ========================================================================= */
   switchTab(tab) {
-    ["Studio", "Feed", "History"].forEach((t) => {
+    ["Studio", "Feed", "Friends", "History", "Profile"].forEach((t) => {
       const lower = t.toLowerCase();
-      document.getElementById(`tabBtn${t}`).classList.toggle("active", lower === tab);
-      document.getElementById(`tab${t}`).style.display = lower === tab ? "block" : "none";
+      const active = lower === tab;
+      const button = document.getElementById(`tabBtn${t}`);
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      document.getElementById(`tab${t}`).style.display = active ? "block" : "none";
     });
     if (tab === "feed") this.loadFriendsFeed();
+    if (tab === "friends") this.loadFriends();
     if (tab === "history") this.renderHistory();
+    if (tab === "profile") this.loadProfileForm();
+  }
+
+  updateAudienceControls() {
+    const isPrivate = document.getElementById("privateCheck").checked;
+    const input = document.getElementById("recipientInput");
+    input.disabled = isPrivate;
+    if (isPrivate) input.value = "";
+  }
+
+  normalizeUsers(value) {
+    const candidates = Array.isArray(value) ? value : [];
+    return candidates.map((item) => item?.user || item?.profile || item).filter(Boolean);
+  }
+
+  async listFirestoreUserIds(collection) {
+    const token = await this.getValidToken();
+    const uid = encodeURIComponent(this.session.uid);
+    const url = `https://firestore.googleapis.com/v1/projects/locket-4252a/databases/(default)/documents/users/${uid}/${collection}`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error?.message || `Firestore lỗi ${response.status}`);
+    return (data.documents || []).map((document) => document.name?.split("/").pop()).filter(Boolean);
+  }
+
+  async fetchUsersByIds(ids) {
+    return Promise.all(ids.map(async (uid) => {
+      try {
+        const response = await this.postLocketApi("fetchUserV2", { user_uid: uid });
+        return { uid, ...(response.data || response) };
+      } catch {
+        return { uid };
+      }
+    }));
+  }
+
+  createUserItem(user, actions = []) {
+    const item = document.createElement("div");
+    item.className = "management-item";
+    const info = document.createElement("div");
+    const name = document.createElement("strong");
+    name.textContent = [user.first_name || user.firstName, user.last_name || user.lastName].filter(Boolean).join(" ") || user.username || "Người dùng Locket";
+    const uid = document.createElement("span");
+    uid.className = "muted-id";
+    uid.textContent = String(user.uid || user.user_uid || user.id || "Không có UID");
+    info.append(name, uid);
+    item.appendChild(info);
+    if (actions.length) {
+      const controls = document.createElement("div");
+      controls.className = "management-actions";
+      actions.forEach(({ label, action, danger = false }) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `btn btn-sm${danger ? " btn-danger" : ""}`;
+        button.textContent = label;
+        button.addEventListener("click", () => action(button));
+        controls.appendChild(button);
+      });
+      item.appendChild(controls);
+    }
+    return item;
+  }
+
+  async loadFriends() {
+    const container = document.getElementById("friendsContainer");
+    if (!this.requireLiveSession()) return this.setEmptyState(container, "Đăng nhập để quản lý bạn bè.");
+    this.setEmptyState(container, "⏳ Đang tải danh sách bạn bè...");
+    try {
+      const [friendIds, requestIds] = await Promise.all([
+        this.listFirestoreUserIds("friends"),
+        this.listFirestoreUserIds("incoming_friend_requests")
+      ]);
+      const [friends, requests] = await Promise.all([
+        this.fetchUsersByIds(friendIds),
+        this.fetchUsersByIds(requestIds)
+      ]);
+      const nodes = [];
+      requests.forEach((user, index) => {
+        const uid = user.uid || user.user_uid || user.id || requestIds[index];
+        nodes.push(this.createUserItem(user, [{ label: "Chấp nhận", action: () => this.acceptFriendRequest(uid) }]));
+      });
+      friends.forEach((user, index) => {
+        const uid = user.uid || user.user_uid || user.id || friendIds[index];
+        nodes.push(this.createUserItem(user, [
+          { label: "Nhắn tin", action: () => {
+            document.getElementById("chatReceiverInput").value = uid;
+            document.getElementById("chatMessageInput").focus();
+          } },
+          { label: "Xóa bạn", danger: true, action: (button) => this.removeFriend(uid, button) }
+        ]));
+      });
+      if (!nodes.length) return this.setEmptyState(container, "Bạn chưa có bạn bè hoặc lời mời mới.");
+      container.replaceChildren(...nodes);
+    } catch (error) {
+      this.setEmptyState(container, `❌ Không tải được bạn bè: ${error.message}`);
+    }
+  }
+
+  async sendFriendRequest() {
+    if (!this.requireLiveSession()) return;
+    const input = document.getElementById("friendUidInput");
+    const uid = input.value.trim();
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(uid)) return this.toast("❌ UID người dùng không hợp lệ.");
+    const payload = {
+      user_uid: uid,
+      source: "inviteCardPopup",
+      platform: "iOS",
+      create_ofr_for_temp_users: false,
+      share_history_eligible: true,
+      get_reengagement_status: false,
+      prompted_reengagement: false,
+      rollcall: false,
+      invite_variant: {
+        value: "1002",
+        "@type": "type.googleapis.com/google.protobuf.Int64Value"
+      }
+    };
+    try {
+      try {
+        await this.postLocketApi("sendFriendRequest", payload);
+      } catch (error) {
+        if (error.status !== 401 || !this.session.refreshToken) throw error;
+        await this.getValidToken(true);
+        await this.postLocketApi("sendFriendRequest", payload);
+      }
+      input.value = "";
+      this.toast("✅ Đã gửi lời mời kết bạn.");
+    } catch (error) {
+      console.warn("[DEBUG-friend-request-7c31]", {
+        endpoint: "sendFriendRequest",
+        status: error.status || 0,
+        code: error.code || "",
+        message: error.message
+      });
+      this.toast(`❌ Không gửi được lời mời: ${error.message}`);
+    }
+  }
+
+  async acceptFriendRequest(uid) {
+    if (!uid || !this.requireLiveSession()) return;
+    try {
+      await this.postLocketApi("acceptFriendRequest", { user_uid: uid, during_signup: false, ios_version: "2.68.0.2523" });
+      this.toast("✅ Đã chấp nhận lời mời.");
+      await this.loadFriends();
+    } catch (error) {
+      this.toast(`❌ Không thể chấp nhận: ${error.message}`);
+    }
+  }
+
+  async removeFriend(uid, button) {
+    if (!uid || !this.requireLiveSession() || !confirm("Xóa người này khỏi danh sách bạn bè?")) return;
+    button.disabled = true;
+    try {
+      await this.postLocketApi("removeFriend", { user_uid: uid });
+      this.toast("✅ Đã xóa bạn.");
+      await this.loadFriends();
+    } catch (error) {
+      button.disabled = false;
+      this.toast(`❌ Không thể xóa bạn: ${error.message}`);
+    }
+  }
+
+  async sendChatMessage() {
+    if (!this.requireLiveSession()) return;
+    const receiver = document.getElementById("chatReceiverInput").value.trim();
+    const messageInput = document.getElementById("chatMessageInput");
+    const message = messageInput.value.trim();
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(receiver)) return this.toast("❌ UID người nhận không hợp lệ.");
+    if (!message) return this.toast("❌ Tin nhắn đang trống.");
+    try {
+      await this.postLocketApi("sendChatMessageV2", { receiver_uid: receiver, msg: message, moment_uid: null, from_memory: false, intensity: 0, client_token: crypto.randomUUID().toUpperCase() });
+      messageInput.value = "";
+      this.toast("✅ Đã gửi tin nhắn.");
+    } catch (error) {
+      this.toast(`❌ Không gửi được tin nhắn: ${error.message}`);
+    }
+  }
+
+  loadProfileForm() {
+    document.getElementById("profileFirstName").value = this.session.firstName || "";
+    document.getElementById("profileLastName").value = this.session.lastName || "";
+  }
+
+  async saveProfile() {
+    if (!this.requireLiveSession()) return;
+    const firstName = document.getElementById("profileFirstName").value.trim();
+    const lastName = document.getElementById("profileLastName").value.trim();
+    const birthdate = document.getElementById("profileBirthdate").value;
+    if (!firstName) return this.toast("❌ Tên không được để trống.");
+    const button = document.getElementById("btnSaveProfile");
+    button.disabled = true;
+    try {
+      const payload = { first_name: firstName, last_name: lastName };
+      if (birthdate) payload.birthdate = birthdate;
+      await this.postLocketApi("changeProfileInfo", payload);
+      this.session.firstName = firstName;
+      this.session.lastName = lastName;
+      this.saveSession();
+      this.updateAuthUI();
+      this.toast("✅ Đã cập nhật hồ sơ.");
+    } catch (error) {
+      this.toast(`❌ Không lưu được hồ sơ: ${error.message}`);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  setEmptyState(container, message) {
+    container.replaceChildren();
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = message;
+    container.appendChild(empty);
+  }
+
+  createFeedItem({ author, caption, time = "", thumb = "", momentUid = "", mode = "" }) {
+    const el = document.createElement("div");
+    el.className = "feed-item";
+
+    const media = thumb ? document.createElement("img") : document.createElement("div");
+    media.className = `feed-thumb${thumb ? "" : " feed-thumb-placeholder"}`;
+    if (thumb) {
+      media.src = thumb;
+      media.alt = "Ảnh khoảnh khắc";
+      media.loading = "lazy";
+    } else {
+      media.textContent = "📸";
+    }
+
+    const info = document.createElement("div");
+    info.className = "feed-info";
+    const authorEl = document.createElement("div");
+    authorEl.className = "feed-author";
+    authorEl.textContent = author;
+    if (mode) {
+      const badge = document.createElement("span");
+      badge.className = "gold-badge";
+      badge.textContent = mode;
+      authorEl.prepend(badge, " ");
+    }
+    if (time) {
+      const timeEl = document.createElement("span");
+      timeEl.className = "feed-time";
+      timeEl.textContent = ` • ${time}`;
+      authorEl.appendChild(timeEl);
+    }
+    const captionEl = document.createElement("div");
+    captionEl.className = "feed-caption";
+    captionEl.textContent = caption;
+    info.append(authorEl, captionEl);
+
+    if (momentUid) {
+      const reactions = document.createElement("div");
+      reactions.className = "reaction-bar";
+      ["❤️", "🔥", "😍", "😂"].forEach((emoji) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "react-btn";
+        button.textContent = emoji;
+        button.setAttribute("aria-label", `Thả cảm xúc ${emoji}`);
+        button.addEventListener("click", () => this.sendReaction(momentUid, emoji));
+        reactions.appendChild(button);
+      });
+      info.appendChild(reactions);
+    }
+    el.append(media, info);
+    return el;
   }
 
   async loadFriendsFeed() {
     const container = document.getElementById("feedContainer");
-    container.innerHTML = `<div class="empty-state">⏳ Đang tải khoảnh khắc từ bạn bè...</div>`;
+    const loadId = ++this.feedLoadId;
+    this.setEmptyState(container, "⏳ Đang tải khoảnh khắc từ bạn bè...");
 
     if (this.isDemo) {
-      container.innerHTML = "";
-      this.demoFeed.forEach((m) => {
-        const el = document.createElement("div");
-        el.className = "feed-item";
-        el.innerHTML = `
-          <div class="feed-thumb feed-thumb-placeholder">📸</div>
-          <div class="feed-info">
-            <div class="feed-author">${m.user_name} <span class="feed-time">• ${m.created_at}</span></div>
-            <div class="feed-caption">${m.caption}</div>
-            <div class="reaction-bar">
-              <button class="react-btn" onclick="app.sendReaction('${m.moment_uid}','❤️')">❤️</button>
-              <button class="react-btn" onclick="app.sendReaction('${m.moment_uid}','🔥')">🔥</button>
-              <button class="react-btn" onclick="app.sendReaction('${m.moment_uid}','😍')">😍</button>
-              <button class="react-btn" onclick="app.sendReaction('${m.moment_uid}','😂')">😂</button>
-            </div>
-          </div>
-        `;
-        container.appendChild(el);
-      });
+      container.replaceChildren(...this.demoFeed.map((m) => this.createFeedItem({
+        author: m.user_name,
+        caption: m.caption,
+        time: m.created_at,
+        momentUid: m.moment_uid
+      })));
       return;
     }
 
     try {
-      const res = await this.postLocketApi("getLatestMomentV2", {
-        should_count_missed_moments: true,
-        include_group_moments: true
-      });
-      const list = res.data || [];
-      if (!list.length) {
-        container.innerHTML = `<div class="empty-state">ℹ️ Chưa có khoảnh khắc mới trên feed.</div>`;
-        return;
+      const moments = [];
+      const seen = new Set();
+      let syncToken = null;
+      // ponytail: Giới hạn 10 trang/150 bài; chuyển sang nút tải thêm khi API hoặc UX cần lịch sử lớn hơn.
+      for (let page = 0; page < 10 && moments.length < 150; page += 1) {
+        const payload = {
+          should_count_missed_moments: page === 0,
+          include_group_moments: true
+        };
+        if (syncToken) payload.sync_token = syncToken;
+        const diagnostic = await this.postLocketApi("getLatestMomentV2", payload, true);
+        if (loadId !== this.feedLoadId) return;
+        const response = diagnostic.result;
+        const pageItems = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : [];
+        const entry = {
+          page: page + 1,
+          status: diagnostic.status,
+          responseKeys: diagnostic.keys,
+          resultKeys: response && !Array.isArray(response) && typeof response === "object" ? Object.keys(response) : [],
+          items: pageItems.length,
+          requestedToken: Boolean(syncToken),
+          hasCanonicalUid: pageItems.some((item) => Boolean(item?.canonical_uid))
+        };
+        console.info("[DEBUG-feed-a4f2]", entry);
+        if (!pageItems.length) {
+          console.info("[DEBUG-feed-a4f2]", { stop: "empty-page", pagesLoaded: page + 1, totalItems: moments.length });
+          break;
+        }
+        let added = 0;
+        for (const moment of pageItems) {
+          const key = moment.canonical_uid || moment.id;
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          moments.push(moment);
+          added += 1;
+        }
+        const nextToken = pageItems.at(-1)?.canonical_uid;
+        if (!added || !nextToken || nextToken === syncToken) {
+          const stop = !added ? "no-new-items" : !nextToken ? "missing-next-token" : "unchanged-token";
+          console.info("[DEBUG-feed-a4f2]", { stop, pagesLoaded: page + 1, totalItems: moments.length });
+          break;
+        }
+        syncToken = nextToken;
       }
-      container.innerHTML = "";
-      list.slice(0, 15).forEach((m) => {
-        const mid = m.canonical_uid || m.id || "";
-        const cap = m.caption || m.overlays?.[0]?.alt_text || "(Không có caption)";
-        const thumb = m.thumbnail_url || "";
-        const el = document.createElement("div");
-        el.className = "feed-item";
-        el.innerHTML = `
-          <img class="feed-thumb" src="${thumb}" alt="moment" onerror="this.style.background='#222'" />
-          <div class="feed-info">
-            <div class="feed-author">UID: <code>${(m.user || "").slice(0, 10)}...</code></div>
-            <div class="feed-caption">${cap}</div>
-            <div class="reaction-bar">
-              <button class="react-btn" onclick="app.sendReaction('${mid}','❤️')">❤️</button>
-              <button class="react-btn" onclick="app.sendReaction('${mid}','🔥')">🔥</button>
-              <button class="react-btn" onclick="app.sendReaction('${mid}','😍')">😍</button>
-              <button class="react-btn" onclick="app.sendReaction('${mid}','😂')">😂</button>
-            </div>
-          </div>
-        `;
-        container.appendChild(el);
-      });
+      if (!moments.length) return this.setEmptyState(container, "ℹ️ Chưa có khoảnh khắc mới trên feed.");
+      container.replaceChildren(...moments.map((m) => this.createFeedItem({
+        author: `UID: ${String(m.user || "").slice(0, 10)}...`,
+        caption: m.caption || m.overlays?.[0]?.alt_text || "(Không có caption)",
+        thumb: m.thumbnail_url || "",
+        momentUid: m.canonical_uid || m.id || ""
+      })));
     } catch (e) {
-      container.innerHTML = `<div class="empty-state">❌ Lỗi tải feed: ${e.message}</div>`;
+      if (loadId === this.feedLoadId) this.setEmptyState(container, `❌ Lỗi tải feed: ${e.message}`);
     }
   }
 
@@ -1076,28 +1470,24 @@ class LocketWebApp {
   renderHistory() {
     const container = document.getElementById("historyContainer");
     if (!container) return;
-    const list = JSON.parse(localStorage.getItem("locket_web_history") || "[]");
+    let list = [];
+    try {
+      list = JSON.parse(localStorage.getItem("locket_web_history") || "[]");
+      if (!Array.isArray(list)) list = [];
+    } catch (error) {
+      console.warn("History load error:", error);
+    }
     if (!list.length) {
-      container.innerHTML = `<div class="empty-state">Chưa có khoảnh khắc nào được đăng trong phiên trình duyệt này.</div>`;
+      this.setEmptyState(container, "Chưa có khoảnh khắc nào được đăng trong phiên trình duyệt này.");
       return;
     }
-    container.innerHTML = "";
-    list.forEach((item) => {
-      const el = document.createElement("div");
-      el.className = "feed-item";
-      el.innerHTML = `
-        <img class="feed-thumb" src="${item.thumb || ""}" alt="thumb" />
-        <div class="feed-info">
-          <div class="feed-author">
-            <span class="gold-badge">${item.mode}</span>
-            ID: <code>${item.moment_uid}</code>
-          </div>
-          <div class="feed-caption">${item.caption}</div>
-          <div class="feed-time">🕒 Lúc: ${item.created_at}</div>
-        </div>
-      `;
-      container.appendChild(el);
-    });
+    container.replaceChildren(...list.map((item) => this.createFeedItem({
+      author: `ID: ${String(item.moment_uid || "")}`,
+      caption: String(item.caption || ""),
+      time: `🕒 Lúc: ${String(item.created_at || "")}`,
+      thumb: String(item.thumb || ""),
+      mode: String(item.mode || "")
+    })));
   }
 
   clearHistory() {
