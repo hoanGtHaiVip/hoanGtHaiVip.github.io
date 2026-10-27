@@ -115,16 +115,82 @@
         <div class="overlay-types">
           <button class="overlay-pill active" id="ov_standard" onclick="app.setOverlayMode('standard')">💬 Chuẩn</button>
           <button class="overlay-pill" id="ov_streak" onclick="app.setOverlayMode('streak')">🔥 Streak</button>
+          <button class="overlay-pill" id="ov_rollcall" onclick="app.setOverlayMode('rollcall')">🎯 Rollcall (Mới)</button>
+          <button class="overlay-pill" id="ov_goldbadge" onclick="app.setOverlayMode('goldbadge')">💛 Gold VIP</button>
+          <button class="overlay-pill" id="ov_rewind" onclick="app.setOverlayMode('rewind')">⏪ Rewind</button>
           <button class="overlay-pill" id="ov_time" onclick="app.setOverlayMode('time')">🕒 Giờ</button>
           <button class="overlay-pill" id="ov_weather" onclick="app.setOverlayMode('weather')">⛅ Thời tiết</button>
           <button class="overlay-pill" id="ov_location" onclick="app.setOverlayMode('location')">📍 Địa điểm</button>
           <button class="overlay-pill" id="ov_music" onclick="app.setOverlayMode('music')">🎵 Nhạc</button>
+          <button class="overlay-pill" id="ov_link" onclick="app.setOverlayMode('link')">🔗 Link Web</button>
           <button class="overlay-pill" id="ov_colors" onclick="app.setOverlayMode('colors')">🎨 Gradient</button>
           <button class="overlay-pill" id="ov_preset" onclick="app.setOverlayMode('preset')">👑 158 Badges</button>
         </div>
 
         <!-- Dynamic Sub-Panel depending on selected Overlay Mode -->
         <div class="dynamic-config" id="dynamicConfigBox">
+          <!-- Link Caption Config (Secret APK 1.244.0 Feature) -->
+          <div id="cfg_link" class="cfg-subpanel" style="display:none;">
+            <div class="input-row">
+              <div class="input-group-grow">
+                <label class="field-label">🔗 Đường dẫn Website (Clickable Link):</label>
+                <input type="url" id="linkValInput" class="input" value="https://instagram.com" oninput="app.updatePreview()" placeholder="https://..." />
+              </div>
+              <div class="quick-btn-group">
+                <button class="btn btn-sm" onclick="app.setQuickLink('https://instagram.com')">Instagram</button>
+                <button class="btn btn-sm" onclick="app.setQuickLink('https://facebook.com')">Facebook</button>
+                <button class="btn btn-sm" onclick="app.setQuickLink('https://tiktok.com')">TikTok</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rollcall Config (New APK 1.244.0) -->
+          <div id="cfg_rollcall" class="cfg-subpanel" style="display:none;">
+            <div class="input-row">
+              <div class="input-group-grow">
+                <label class="field-label">🎯 Chủ đề Rollcall hàng ngày:</label>
+                <input type="text" id="rollcallValInput" class="input" value="Rollcall Hôm Nay" oninput="app.updatePreview()" placeholder="VD: Bữa tối của bạn, Đi học..." />
+              </div>
+              <div class="quick-btn-group">
+                <button class="btn btn-sm" onclick="app.setQuickRollcall('Bữa ăn hôm nay 🍲')">Ăn uống</button>
+                <button class="btn btn-sm" onclick="app.setQuickRollcall('Góc làm việc 💻')">Work</button>
+                <button class="btn btn-sm" onclick="app.setQuickRollcall('Outfit of the Day ✨')">OOTD</button>
+                <button class="btn btn-sm" onclick="app.setQuickRollcall('View hoàng hôn 🌇')">Sunset</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Locket Gold VIP Badge Config -->
+          <div id="cfg_goldbadge" class="cfg-subpanel" style="display:none;">
+            <div class="input-row">
+              <div class="input-group-grow">
+                <label class="field-label">💛 Kiểu Huy hiệu Locket Gold:</label>
+                <select id="goldBadgeStyleSelect" class="select" onchange="app.updatePreview()">
+                  <option value="classic">👑 Locket Gold Hoàng Gia (Gold Sparkle)</option>
+                  <option value="waves">🌊 Waves Gold Edition (Sóng Vàng)</option>
+                  <option value="pastel">🎨 Pastel 3D Gold (Hiệu ứng 3D)</option>
+                  <option value="black_gold">🖤 Black On Gold (Vàng Đen Sang Trọng)</option>
+                  <option value="celeb">⭐ Celebrity Verified Badge (Tích Sao Locket)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rewind Monthly / Yearly Config -->
+          <div id="cfg_rewind" class="cfg-subpanel" style="display:none;">
+            <div class="input-row">
+              <div class="input-group-grow">
+                <label class="field-label">⏪ Dòng thời gian Rewind:</label>
+                <input type="text" id="rewindValInput" class="input" value="Rewind Tháng Này ✨" oninput="app.updatePreview()" placeholder="VD: Rewind Kỷ Niệm 2026..." />
+              </div>
+              <div class="quick-btn-group">
+                <button class="btn btn-sm" onclick="app.setQuickRewind('Tháng này có gì vui? ✨')">Tháng này</button>
+                <button class="btn btn-sm" onclick="app.setQuickRewind('Best Friends Rewind 👯')">Tri kỷ</button>
+                <button class="btn btn-sm" onclick="app.setQuickRewind('Kỷ niệm 1 năm trước 🕒')">1 năm trước</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Streak Config -->
           <div id="cfg_streak" class="cfg-subpanel" style="display:none;">
             <div class="input-row">

@@ -439,7 +439,7 @@ class LocketWebApp {
     const isMp4Name = file.name.toLowerCase().endsWith(".mp4");
     const isVideo = file.type.startsWith("video/") || (!file.type && isMp4Name);
     const isImage = file.type.startsWith("image/");
-    const maxSize = isVideo ? 6291455 : 20 * 1024 * 1024;
+    const maxSize = isVideo ? 47185920 : 25 * 1024 * 1024;
     if (!isVideo && !isImage) return this.toast("⚠️ Chỉ hỗ trợ tệp ảnh hoặc video MP4.");
     if (file.size > maxSize) return this.toast(`⚠️ ${isVideo ? "Video" : "Ảnh"} vượt quá ${isVideo ? "6 MB" : "20 MB"}.`);
 
@@ -734,7 +734,7 @@ class LocketWebApp {
 
   setOverlayMode(mode) {
     this.overlayMode = mode;
-    ["standard", "streak", "time", "weather", "location", "music", "colors", "preset"].forEach((m) => {
+    ["standard", "streak", "rollcall", "goldbadge", "rewind", "time", "weather", "location", "music", "link", "colors", "preset"].forEach((m) => {
       document.getElementById(`ov_${m}`)?.classList.toggle("active", m === mode);
       const cfg = document.getElementById(`cfg_${m}`);
       if (cfg) cfg.style.display = m === mode ? "block" : "none";
@@ -742,6 +742,24 @@ class LocketWebApp {
     if (mode === "time" && !document.getElementById("timeValInput").value) {
       this.fillCurrentTime();
     }
+    this.updatePreview();
+  }
+
+  setQuickLink(val) {
+    const el = document.getElementById("linkValInput");
+    if (el) el.value = val;
+    this.updatePreview();
+  }
+
+  setQuickRollcall(val) {
+    const el = document.getElementById("rollcallValInput");
+    if (el) el.value = val;
+    this.updatePreview();
+  }
+
+  setQuickRewind(val) {
+    const el = document.getElementById("rewindValInput");
+    if (el) el.value = val;
     this.updatePreview();
   }
 
@@ -790,7 +808,51 @@ class LocketWebApp {
     let dataType = "standard";
     let syntaxHint = "";
 
-    if (this.overlayMode === "streak") {
+    if (this.overlayMode === "link") {
+      const lk = document.getElementById("linkValInput")?.value.trim() || "https://locket.cam";
+      finalText = rawCaption ? `${lk} · ${rawCaption}` : lk;
+      icon = "🔗";
+      colors = ["#0052D4", "#4364F7", "#6FB1FC"];
+      textColor = "#FFFFFF";
+      overlayId = "caption:link";
+      dataType = "link_caption";
+      syntaxHint = `[link: ${lk}] ${rawCaption}`;
+    } else if (this.overlayMode === "rollcall") {
+      const rVal = document.getElementById("rollcallValInput")?.value.trim() || "Rollcall Hôm Nay";
+      finalText = rawCaption ? `${rVal} · ${rawCaption}` : rVal;
+      icon = "🎯";
+      colors = ["#FF416C", "#FF4B2B"];
+      textColor = "#FFFFFF";
+      overlayId = "rollcall:daily";
+      dataType = "rollcall";
+      syntaxHint = `[rollcall: ${rVal}] ${rawCaption}`;
+    } else if (this.overlayMode === "goldbadge") {
+      const style = document.getElementById("goldBadgeStyleSelect")?.value || "classic";
+      const styleNames = {
+        classic: { icon: "👑", text: "LOCKET GOLD VIP", colors: ["#FFD700", "#FFA500"] },
+        waves: { icon: "🌊", text: "GOLD WAVES EDITION", colors: ["#F9D423", "#FF4E50"] },
+        pastel: { icon: "🎨", text: "PASTEL 3D GOLD", colors: ["#FFE066", "#FFB800"] },
+        black_gold: { icon: "🖤", text: "GOLD NOIR VIP", colors: ["#232526", "#414345"] },
+        celeb: { icon: "⭐", text: "VERIFIED CELEBRITY", colors: ["#00C9FF", "#92FE9D"] }
+      };
+      const cur = styleNames[style] || styleNames.classic;
+      finalText = rawCaption ? `${cur.text} · ${rawCaption}` : cur.text;
+      icon = cur.icon;
+      colors = cur.colors;
+      textColor = style === "black_gold" ? "#FFD700" : "#FFFFFF";
+      overlayId = `gold:${style}`;
+      dataType = "badge";
+      syntaxHint = `[gold_vip: ${style}] ${rawCaption}`;
+    } else if (this.overlayMode === "rewind") {
+      const rwVal = document.getElementById("rewindValInput")?.value.trim() || "Rewind Kỷ Niệm";
+      finalText = rawCaption ? `${rwVal} · ${rawCaption}` : rwVal;
+      icon = "⏪";
+      colors = ["#8A2387", "#E94057", "#F27121"];
+      textColor = "#FFFFFF";
+      overlayId = "rewind:monthly";
+      dataType = "rewind";
+      syntaxHint = `[rewind: ${rwVal}] ${rawCaption}`;
+    } else if (this.overlayMode === "streak") {
       const sVal = document.getElementById("streakValInput").value.trim() || "100 Days";
       finalText = rawCaption ? `${sVal} · ${rawCaption}` : sVal;
       icon = "🔥";
@@ -873,6 +935,10 @@ class LocketWebApp {
     };
     if (icon) {
       overlayPayload.data.icon = { data: icon, type: "emoji" };
+    }
+    if (this.overlayMode === "link") {
+      const lk = document.getElementById("linkValInput")?.value.trim() || "https://locket.cam";
+      overlayPayload.data.link_url = lk;
     }
 
     return { finalText, icon, colors, textColor, overlayPayload, syntaxHint };
@@ -1031,7 +1097,7 @@ class LocketWebApp {
 
       let videoUrl = null;
       if (this.mediaType === "video" && this.currentVideoFile) {
-        if (this.currentVideoFile.size > 6291455) {
+        if (this.currentVideoFile.size > 47185920) {
           throw new Error("Video trên trình duyệt cần nhỏ hơn 6MB (hoặc dùng Bot Telegram để nén tự động HEVC 5-10 phút).");
         }
         btn.innerHTML = "⏳ Đang tải Video lên Locket Storage...";
